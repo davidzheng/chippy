@@ -1,4 +1,5 @@
 import os
+import random
 
 class CPU():
     def __init__(self):
@@ -9,10 +10,11 @@ class CPU():
         self.registers = [None] * 16
         self.address = [None] * 16
         self.stack = [None] * 16
-        self.key = [None] * 16
+        self.keys = [None] * 16
         self.display_pixels = [[0 for _ in range(64)] for _ in range(32)] 
         self.pc = 0x200
         self.sp = 0
+        self.register_I = 0
         self.delay_timer = 0
         self.sound_timer = 0
         self.draw = False
@@ -182,27 +184,109 @@ class CPU():
                 self.registers[opcode & 0x0F00 >> 8] = (self.registers[opcode & 0x0F00 >> 8] << 1)
                 self.pc += 2
 
+        # Opcode 9XY0: Skip next instruction if value of register X != value of register Y
         elif first_hex == 0x9000:
-            print("skip if unequal")
-            self.pc += 2
+            if self.registers[opcode & 0x0F00 >> 8] != self.registers[opcode & 0x00F0 >> 4]:
+                self.pc += 4
+            else:
+                self.pc += 2
+
+        # Opcode ANNN: Set value of register I to NNN
         elif first_hex == 0xA000:
-            print("set")
+            self.register_I = (opcode & 0x0FFF)
             self.pc += 2
+
+        # Opcode BNNN: Jump to location NNN + value of register 0
         elif first_hex == 0xB000:
-            print("jmp")
-            self.pc += 2
+            self.pc = (opcode & 0x0FFF) + self.registers[0]
+
+        # Opcode CXKK: Sets the value of register X to (random byte AND kk)
         elif first_hex == 0xC000:
-            print("bitwise")
+            random_byte = randint(0, 255) 
+            self.registers[opcode & 0x0F00 >> 8] = (random_byte & (opcode & 0x00FF))
             self.pc += 2
+
+        # TODO add display functionality
+        # Opcode DXYN: Display an N-byte sprite starting at memory location I at (value of register X, value of register Y)
+        # Set value of register F = collision
         elif first_hex == 0xD000:
-            print("Draw")
-            self.pc +=2
+            
+
+         
         elif first_hex == 0xE000:
-            print("skip pressed")
-            self.pc+= 2
+            last_hex = opcode & 0x000F
+            # Opcode EX9E: Skips the next instruction if key with the value of register X is pressed
+            if last_hex == 0x000E:
+                if self.keys[opcode & 0x0F00 >> 8] != 0:
+                    self.pc += 4
+                else:
+                    self.pc += 2
+            # Opcode EXA1: Skips the next instruction if key with the value of register X is not pressed
+            if last_hex == 0x0001:
+                if self.keys[opcode & 0x0F00 >> 8] == 0:
+                    self.pc += 4
+                else:
+                    self.pc +=2
+        
+
+        elif first_hex == 0xF000:
+            last_hex = opcode & 0x000F
+            # Opcode FX07: Set the value of register X to the value of the delay timer
+            if last_hex == 0x0007:
+                self.registers[opcode & 0x0F00 >> 8] = self.delay_timer
+                self.pc += 2
+            # Opcode FX0A: Wait for a key press and stores the value of the pressed key into register X
+            if last_hex == 0x000A:
+                key_was_pressed = False
+                while key_was_pressed is not True:
+                    for key in range(0, len(self.keys)):
+                        if key is not 0:
+                            self.registers[opcode & 0x0F00 >> 8] = key
+                            key_was_pressed = True
+                self.pc += 2
+            # Opcode FX15: Set the value of the delay timer to the value of register X
+            if last_hex == 0x0005:
+                self.delay_timer = self.registers[opcode & 0x0F00 >> 8] 
+                self.pc += 2
+            # Opcode FX18: Set the value of the sound timer to the value of register X
+            if last_hex == 0x0008:
+                self.sound_timer = self.registers[opxode & 0x0F00 >> 8]
+                self.pc += 2
+            # Opcode FX1E: Set the value of register I to (value of register I + value of register X)
+            if last_hex == 0x000E:
+                self.register_I += self.registers[opcode & 0x0F00 >> 8]
+                self.pc += 2
+            # Opcode FX29: Set value of register I to the location of sprite for the digit of the value of register X
+            if last_hex == 0x0009:
+
+            # Opcode FX33: Store the binary-coded decimal representation of the value of register X in memory locations I, I+1, and I+2
+            if last_hex == 0x0003:
+                value = self.registers[opcode & 0x0F00 >> 8]
+                difference = 2
+                while difference >= 0:
+                    self.memory[self.register_I + difference] = value % 10
+                    value = value // 10
+                    difference -= 1
+                self.pc += 2
+            # Opcode Fx55: Store the values of register 0 through X in memory starting in location of the value of register I
+            if last_hex == 0x0005:
+                location = 0
+                end = opcode & 0x0F00 >> 8
+                while location <= end:
+                    self.memory[self.register_I + location] = self.registers[location]
+                    location += 1
+                self.pc += 2
+            # Opcode FX65: Load the registers 0 through X with values starting from the address of the value of register I
+            if last_hex == 0x0006:
+                location = 0
+                end = opcode & 0x0F00 >> 8
+                while location <= end:
+                    self.registers[location] = self.memory[self.regsiter_I + location]
+                    location += 1
+                self.pc += 2
         else:
-            print("f stuff")
-            self.pc += 2
+            print("Invalid opcode, chippy will now quit")
+            quit()
 
     def perform_cycle(self):
         current_opcode = self.get_opcode()
