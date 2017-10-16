@@ -2,6 +2,13 @@ import os
 import random
 
 class CPU():
+    """
+    The Chip-8 has 4KB of RAM from 0x000 to 0xFFF. The original interpreter is stored in memory 
+    from 0x000 to 0x1FF so most programs will start at 0x200. The Chip-8 has 16 8-bit registers
+    and a 16-bit register that stores memory addresses. There are also 2 8-bit registers that 
+    are the delay and sound timers. The stack can hold 16 16-bit values. The Chip-8 had a 16-bit
+    keypad from 0~9 and A~F.
+    """
     def __init__(self):
         """
         Initializes all the needed components of the Chip-8 CPU to their proper values
@@ -101,7 +108,7 @@ class CPU():
         
         # Opcode 4XKK: Skips next instruction if value stored in register X != KK
         elif first_hex == 0x4000:
-            if (self.registers[opcode & 0x0F00 >> 8] != (opcode & 0x00FF))
+            if (self.registers[opcode & 0x0F00 >> 8] != (opcode & 0x00FF)):
                 self.pc += 4
             else:
                 self.pc += 2
@@ -157,9 +164,9 @@ class CPU():
             elif last_hex == 0x005:
                 # Sets carry register to 0 if there is a borrow else set to 1
                 if (self.registers[opcode & 0x0F00 >> 8] > self.registers[opcode & 0x00F0 >> 4]):
-                    self.registers[0xF] = 1:
+                    self.registers[0xF] = 1
                 else: 
-                    self.registers[0xF] = 0:
+                    self.registers[0xF] = 0
                 self.registers[opcode & 0x0F00 >>8] -= self.registers[opcode & 0x00F0 >>4]
                 self.pc += 2
             # Opcode 8XY6: Right shift the value of register X by 1
@@ -210,7 +217,7 @@ class CPU():
         # Opcode DXYN: Display an N-byte sprite starting at memory location I at (value of register X, value of register Y)
         # Set value of register F = collision
         elif first_hex == 0xD000:
-            
+           pass 
 
          
         elif first_hex == 0xE000:
@@ -258,7 +265,7 @@ class CPU():
                 self.pc += 2
             # Opcode FX29: Set value of register I to the location of sprite for the digit of the value of register X
             if last_hex == 0x0009:
-
+                pass
             # Opcode FX33: Store the binary-coded decimal representation of the value of register X in memory locations I, I+1, and I+2
             if last_hex == 0x0003:
                 value = self.registers[opcode & 0x0F00 >> 8]
