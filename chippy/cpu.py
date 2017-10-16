@@ -1,7 +1,7 @@
 import os
 import random
 
-class CPU():
+class CPU(object):
     """
     The Chip-8 has 4KB of RAM from 0x000 to 0xFFF. The original interpreter is stored in memory 
     from 0x000 to 0x1FF so most programs will start at 0x200. The Chip-8 has 16 8-bit registers
@@ -9,21 +9,22 @@ class CPU():
     are the delay and sound timers. The stack can hold 16 16-bit values. The Chip-8 had a 16-bit
     keypad from 0~9 and A~F.
     """
-    def __init__(self):
+    def __init__(self, display):
         """
         Initializes all the needed components of the Chip-8 CPU to their proper values
         """
-        self.memory = [None] * 4096  
-        self.registers = [None] * 16
-        self.address = [None] * 16
-        self.stack = [None] * 16
-        self.keys = [None] * 16
+        self.memory = [0] * 4096  
+        self.registers = [0] * 16
+        self.address = [0] * 16
+        self.stack = [0] * 16
+        self.keys = [0] * 16
         self.display_pixels = [[0 for _ in range(64)] for _ in range(32)] 
         self.pc = 0x200
         self.sp = 0
         self.register_I = 0
         self.delay_timer = 0
         self.sound_timer = 0
+        self.display = display
         self.draw = False 
         
         self.font_set = [
@@ -45,8 +46,8 @@ class CPU():
             0xF0, 0x80, 0xF0, 0x80, 0x80  # F
             ]
 
-        for x in range(0, len(self.font_size)):
-            self.memory[x] = self.font_size[x]
+        for x in range(0, len(self.font_set)):
+            self.memory[x] = self.font_set[x]
     
     def load_rom(self, rom_name):
         """
@@ -96,9 +97,7 @@ class CPU():
             last_hex = opcode & 0x000F
             # Opcode 00E0: clear screen
             if last_hex == 0x0000:
-                for row in self.display_pixels:
-                    for pixel in row:
-                        row[pixel] = 0
+                self.display.clear_display()
                 self.draw = True
                 self.pc += 2 
             # Opcode 00EE: returns from subroutine
@@ -229,18 +228,43 @@ class CPU():
         elif first_hex == 0xB000:
             self.pc = (opcode & 0x0FFF) + self.registers[0]
 
-        # Opcode CXKK: Sets the value of register X to (random byte AND kk)
+        # Opcode CXKK: Sets the value of register X to (random byte AND KK)
         elif first_hex == 0xC000:
             random_byte = randint(0, 255) 
             self.registers[opcode & 0x0F00 >> 8] = (random_byte & (opcode & 0x00FF))
             self.pc += 2
 
-        # TODO add display functionality
         # Opcode DXYN: Display an N-byte sprite starting at memory location I at (value of register X, value of register Y)
-        # Set value of register F = collision
+        # Set value of register F to 1 if collision else set it to 0
         elif first_hex == 0xD000:
-           pass 
-
+            n = opcode & 0x000F
+            x = opcode & 0x0F00 >> 8
+            y = opcode & 0x00F0 >> 4
+            start_location = self.register_I
+            self.registers[0x000F] = 0
+            
+            for y_val in range(n):
+                print(self.register_I + y_val)
+                sprite_byte = self.memory[self.register_I + y_val]
+                sprite_byte = bin(sprite_byte)[2:]
+                sprite_byte = sprite_byte.zfill(8)
+                y_coord = y + y_val
+                y_coord_adjusted = y_coord % self.display.height
+                
+                for x_val in range(8):
+                    x_coord = x + x_val
+                    x_coord_adjusted = x_coord % self.display.width
+                    pixel_color = int(sprite_byte[x_val])
+                    current_pixel = self.display.check_pixel(x_coord_adjusted, y_coord_adjusted)
+                    if pixel_color == 1 and current_pixel == 1:
+                        self.registers[0x000F] == 1
+                        pixel_color = 0
+                    elif pixel_color == 0 and current_pixel == 1:
+                        pixel_color == 1
+                    self.display.set_pixel(x_coord_adjusted, y_coord_adjusted, pixel_color)
+                
+            self.draw = True 
+            self.pc += 2
          
         elif first_hex == 0xE000:
             last_hex = opcode & 0x000F
@@ -257,7 +281,6 @@ class CPU():
                 else:
                     self.pc +=2
         
-
         elif first_hex == 0xF000:
             last_hex = opcode & 0x000F
             # Opcode FX07: Set the value of register X to the value of the delay timer
@@ -286,11 +309,13 @@ class CPU():
                 self.register_I += self.registers[opcode & 0x0F00 >> 8]
                 self.pc += 2
             # Opcode FX29: Set value of register I to the location of sprite for the digit of the value of register X
+            # Sprites are 5 bytes long so the value of register X must be multiplied by 5
             if last_hex == 0x0009:
-                pass
+                self.register_I = self.registers[opcode & 0x0F00 >> 8] * 0x000F
+                self.pc += 2
             # Opcode FX33: Store the binary-coded decimal representation of the value of register X in memory locations I, I+1, and I+2
             if last_hex == 0x0003:
-                value = self.registers[opcode & 0x0F00 >> 8]
+                value = self.registers[opcode & 0x0F00 >> 8] 
                 difference = 2
                 while difference >= 0:
                     self.memory[self.register_I + difference] = value % 10
@@ -319,6 +344,9 @@ class CPU():
 
     def perform_cycle(self):
         current_opcode = self.get_opcode()
+        print(current_opcode)
         self.perform_opcode(current_opcode)
-
+        if self.draw == True:
+            self.display.update_display()
+            self.draw = False
     
