@@ -339,7 +339,7 @@ class CPU(object):
                     difference -= 1
                 self.pc += 2
             # Opcode Fx55: Store the values of register 0 through X in memory starting in location of the value of register I
-            if last_hex == 0x0005:
+            if (opcode & 0x00FF) == 0x0055:
                 location = 0
                 end = (opcode & 0x0F00) >> 8
                 while location <= end:
@@ -347,7 +347,7 @@ class CPU(object):
                     location += 1
                 self.pc += 2
             # Opcode FX65: Load the registers 0 through X with values starting from the address of the value of register I
-            if last_hex == 0x0006:
+            if (opcode & 0x00FF) == 0x0065:
                 location = 0
                 end = (opcode & 0x0F00) >> 8
                 while location <= end:
