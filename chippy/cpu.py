@@ -313,7 +313,7 @@ class CPU(object):
                             key_was_pressed = True
                 self.pc += 2
             # Opcode FX15: Set the value of the delay timer to the value of register X
-            if last_hex == 0x0005:
+            if (opcode & 0x00F00) == 0x0015:
                 self.delay_timer = self.registers[(opcode & 0x0F00) >> 8] 
                 self.pc += 2
             # Opcode FX18: Set the value of the sound timer to the value of register X
@@ -351,7 +351,7 @@ class CPU(object):
                 location = 0
                 end = (opcode & 0x0F00) >> 8
                 while location <= end:
-                    self.registers[location] = self.memory[self.regsiter_I + location]
+                    self.registers[location] = self.memory[self.register_I + location]
                     location += 1
                 self.pc += 2
         else:
