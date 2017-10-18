@@ -248,12 +248,12 @@ class CPU(object):
             random_byte = random.randint(0, 255) 
             self.registers[(opcode & 0x0F00) >> 8] = (random_byte & (opcode & 0x00FF))
             self.pc += 2
-        """
-        Opcode DXYN: Display an N-byte sprite starting at memory location I at (value of register X, value of register Y)
-        If the pixel of the sprite would go past the edge of the screen, wrap it around instead. Sprites are N pixels tall 
-        and 8 pixels wide on the standard CHIP-8. Drawing works by performing an XOR on a pixel on the screen with a given 
-        bit. Set value of register F to 1 if collision else set it to 0
-        """
+    
+        # Opcode DXYN: Display an N-byte sprite starting at memory location I at (value of register X, value of register Y)
+        # If the pixel of the sprite would go past the edge of the screen, wrap it around instead. Sprites are N pixels tall 
+        # and 8 pixels wide on the standard CHIP-8. Drawing works by performing an XOR on a pixel on the screen with a given 
+        # bit. Set value of register F to 1 if collision else set it to 0
+
         elif first_hex == 0xD000:
             height = opcode & 0x000F
             x_coord = self.registers[(opcode & 0x0F00) >> 8]
