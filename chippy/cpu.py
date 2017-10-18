@@ -25,7 +25,8 @@ class CPU(object):
         self.delay_timer = 0
         self.sound_timer = 0
         self.display = display
-        self.draw = False 
+        self.draw = False
+        self.test = True
         
         self.font_set = [
             0xF0, 0x90, 0x90, 0x90, 0xF0, # 0
@@ -116,9 +117,9 @@ class CPU(object):
                 self.pc += 2 
             # Opcode 00EE: returns from subroutine
             elif last_hex == 0x000E: 
-                #self.sp -= 1
-                self.pc = self.stack[self.sp]
                 self.sp -= 1
+                self.pc = self.stack[self.sp]
+                #self.sp -= 1
                 self.pc += 2
 
         # Opcode 1NNN: Jump to address NNN        
@@ -127,7 +128,6 @@ class CPU(object):
             address = opcode & 0x0FFF
             self.pc = address
 
-        # TODO check implementation
         # Opcode 2NNN: Call subroutine at NNN
         # Adds current pc to stack and increments sp 
         elif first_hex == 0x2000:
@@ -245,41 +245,50 @@ class CPU(object):
 
         # Opcode CXKK: Sets the value of register X to (random byte AND KK)
         elif first_hex == 0xC000:
-            random_byte = randint(0, 255) 
+            random_byte = random.randint(0, 255) 
             self.registers[(opcode & 0x0F00) >> 8] = (random_byte & (opcode & 0x00FF))
             self.pc += 2
-
-        # Opcode DXYN: Display an N-byte sprite starting at memory location I at (value of register X, value of register Y)
-        # Set value of register F to 1 if collision else set it to 0
+        """
+        Opcode DXYN: Display an N-byte sprite starting at memory location I at (value of register X, value of register Y)
+        If the pixel of the sprite would go past the edge of the screen, wrap it around instead. Sprites are N pixels tall 
+        and 8 pixels wide on the standard CHIP-8. Drawing works by performing an XOR on a pixel on the screen with a given 
+        bit. Set value of register F to 1 if collision else set it to 0
+        """
         elif first_hex == 0xD000:
-            n = opcode & 0x000F
-            x = opcode & 0x0F00 >> 8
-            y = opcode & 0x00F0 >> 4
-            start_location = self.register_I
-            self.registers[0x000F] = 0
-            
-            for y_val in range(n):
-                sprite_byte = self.memory[self.register_I + y_val]
-                sprite_byte = bin(sprite_byte)[2:]
-                sprite_byte = sprite_byte.zfill(8)
-                y_coord = y + y_val
-                y_coord_adjusted = y_coord % self.display.height
-                
-                for x_val in range(8):
-                    x_coord = x + x_val
-                    x_coord_adjusted = x_coord % self.display.width
-                    pixel_color = int(sprite_byte[x_val])
-                    current_pixel = self.display.check_pixel(x_coord_adjusted, y_coord_adjusted)
-                    if pixel_color == 1 and current_pixel == 1:
-                        self.registers[0x000F] == 1
+            height = opcode & 0x000F
+            x_coord = self.registers[(opcode & 0x0F00) >> 8]
+            y_coord = self.registers[(opcode & 0x00F0) >> 4]
+            location = self.register_I
+            self.registers[0xF] = 0
+            sprite_list = []
+            print(str(height)) 
+            for offset in range(0, height):
+                sprite_bits = []
+                sprite_byte = self.memory[location + offset]
+                sprite_byte = (bin(sprite_byte)[2:]).zfill(8) 
+                for bit in sprite_byte:
+                    sprite_bits.append(bit)
+                sprite_list.append(sprite_bits)
+            """
+            for sprite in sprite_list:
+                    print(str(sprite))
+            """
+            for sprite in range(len(sprite_list)):
+                increment = 0
+                for pixel in sprite_list[sprite]:
+                    screen_pixel = self.display.check_pixel((x_coord + increment) % self.display.width, (y_coord + sprite) % self.display.height)
+                    pixel_color = int(pixel)
+                    if pixel_color == 1 and screen_pixel == 1:
+                        self.registers[0xF] = 1
                         pixel_color = 0
-                    elif pixel_color == 0 and current_pixel == 1:
-                        pixel_color == 1
-                    self.display.set_pixel(x_coord_adjusted, y_coord_adjusted, pixel_color)
-                
-            self.draw = True 
+                    elif pixel_color == 0 and screen_pixel == 1:
+                        pixel_color = 1
+                    self.display.set_pixel((x_coord + increment) % self.display.width, (y_coord + sprite) % self.display.height, pixel_color)
+                    increment += 1
+            self.draw = True
             self.pc += 2
-         
+
+
         elif first_hex == 0xE000:
             last_hex = opcode & 0x000F
             # TODO implement pygame keys
@@ -313,7 +322,7 @@ class CPU(object):
                             key_was_pressed = True
                 self.pc += 2
             # Opcode FX15: Set the value of the delay timer to the value of register X
-            if (opcode & 0x00F00) == 0x0015:
+            if (opcode & 0x00FF) == 0x0015:
                 self.delay_timer = self.registers[(opcode & 0x0F00) >> 8] 
                 self.pc += 2
             # Opcode FX18: Set the value of the sound timer to the value of register X
@@ -361,8 +370,10 @@ class CPU(object):
     def perform_cycle(self):
         current_opcode = self.get_opcode()
         print(hex(current_opcode))
-        self.testing()
+        if self.test == True:
+            self.testing()
         self.perform_opcode(current_opcode)
+        self.timer_decrement()
         if self.draw == True:
             self.display.update_display()
             self.draw = False
