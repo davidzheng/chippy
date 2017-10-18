@@ -336,7 +336,7 @@ class CPU(object):
             # Opcode FX29: Set value of register I to the location of sprite for the digit of the value of register X
             # Sprites are 5 bytes long so the value of register X must be multiplied by 5
             if last_hex == 0x0009:
-                self.register_I = self.registers[(opcode & 0x0F00) >> 8] * 0x000F
+                self.register_I = self.registers[(opcode & 0x0F00) >> 8] * 0x5
                 self.pc += 2
             # Opcode FX33: Store the binary-coded decimal representation of the value of register X in memory locations I, I+1, and I+2
             if last_hex == 0x0003:
