@@ -54,5 +54,5 @@ class Display():
     def set_pixel(self, x_coord, y_coord, color):
         x = x_coord * self.scale
         y = y_coord * self.scale
-        print(str(x) + " " + str(y))
+        #print(str(x) + " " + str(y))
         pygame.draw.rect(self.display, self.colors[color],(x, y, self.scale, self.scale)) 

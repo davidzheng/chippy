@@ -1,5 +1,6 @@
 import os
 import random
+import pygame
 
 class CPU(object):
     """
@@ -26,7 +27,8 @@ class CPU(object):
         self.sound_timer = 0
         self.display = display
         self.draw = False
-        self.test = True
+        # Set to True for testing purposes
+        self.test = False
         
         self.font_set = [
             0xF0, 0x90, 0x90, 0x90, 0xF0, # 0
@@ -47,17 +49,36 @@ class CPU(object):
             0xF0, 0x80, 0xF0, 0x80, 0x80  # F
             ]
 
+        self.key_map = [
+            pygame.K_x,
+            pygame.K_1,
+            pygame.K_2,
+            pygame.K_3,
+            pygame.K_q,
+            pygame.K_w,
+            pygame.K_e,
+            pygame.K_a,
+            pygame.K_s,
+            pygame.K_d,
+            pygame.K_z,
+            pygame.K_c,
+            pygame.K_4,
+            pygame.K_r,
+            pygame.K_f,
+            pygame.K_v,
+        ]
+
         for x in range(0, len(self.font_set)):
             self.memory[x] = self.font_set[x]
 
     def testing(self):
         for num in range (0, len(self.registers)):
-            print("V" + str(num) + ": " +  str(self.registers[num]))
-        print("I: " + str(self.register_I))
-        print("pc: " + str(self.pc))
-        print("sp: " + str(self.sp))
-        print("dt: " + str(self.delay_timer))
-        print("st: " + str(self.sound_timer))
+            print("V" + str(num) + ": " +  str(hex(self.registers[num])))
+        print("I: " + str(hex(self.register_I)))
+        print("pc: " + str(hex(self.pc)))
+        print("sp: " + str(hex(self.sp)))
+        print("dt: " + str(hex(self.delay_timer)))
+        print("st: " + str(hex(self.sound_timer)))
     def load_rom(self, rom_name):
         """
         Checks if the user entered rom name exists in the proper directory. If the rom exists
@@ -119,7 +140,6 @@ class CPU(object):
             elif last_hex == 0x000E: 
                 self.sp -= 1
                 self.pc = self.stack[self.sp]
-                #self.sp -= 1
                 self.pc += 2
 
         # Opcode 1NNN: Jump to address NNN        
@@ -165,6 +185,8 @@ class CPU(object):
         # Opcode 7XKK: Adds KK to the value in register X and stores it in register X
         elif first_hex == 0x7000:
             self.registers[(opcode & 0x0F00) >> 8] += (opcode & 0x00FF)
+            if self.registers[(opcode & 0x0F00) >> 8] >= 256:
+                self.registers[(opcode & 0x0F00) >> 8] -= 256
             self.pc += 2
 
         elif first_hex == 0x8000:
@@ -193,7 +215,7 @@ class CPU(object):
                     self.registers[0xF] = 1
                     self.registers[(opcode & 0x0F00) >> 8] = (value_sum & 0x00FF)
                 else:
-                    self.registers[0xF] =0
+                    self.registers[0xF] = 0
                     self.registers[(opcode & 0x0F00) >> 8] = value_sum
                 self.pc += 2
             # Opcode 8XY5: Set value of register X to (value of register X SUB value of register Y)
@@ -261,7 +283,7 @@ class CPU(object):
             location = self.register_I
             self.registers[0xF] = 0
             sprite_list = []
-            print(str(height)) 
+            #print(str(height)) 
             for offset in range(0, height):
                 sprite_bits = []
                 sprite_byte = self.memory[location + offset]
@@ -269,10 +291,6 @@ class CPU(object):
                 for bit in sprite_byte:
                     sprite_bits.append(bit)
                 sprite_list.append(sprite_bits)
-            """
-            for sprite in sprite_list:
-                    print(str(sprite))
-            """
             for sprite in range(len(sprite_list)):
                 increment = 0
                 for pixel in sprite_list[sprite]:
@@ -291,35 +309,39 @@ class CPU(object):
 
         elif first_hex == 0xE000:
             last_hex = opcode & 0x000F
-            # TODO implement pygame keys
             # Opcode EX9E: Skips the next instruction if key with the value of register X is pressed
             if last_hex == 0x000E:
-                if self.keys[(opcode & 0x0F00) >> 8] != 0:
+                pressed = pygame.key.get_pressed()
+                key = self.registers[(opcode & 0x0F00) >> 8]
+                if pressed[key]:
                     self.pc += 4
                 else:
                     self.pc += 2
             # Opcode EXA1: Skips the next instruction if key with the value of register X is not pressed
             if last_hex == 0x0001:
-                if self.keys[(opcode & 0x0F00) >> 8] == 0:
+                pressed = pygame.key.get_pressed()
+                key = self.registers[(opcode & 0x0F00) >> 8]
+                if not pressed[self.key_map[key]]:
                     self.pc += 4
                 else:
-                    self.pc +=2
-        
+                    self.pc += 2
         elif first_hex == 0xF000:
             last_hex = opcode & 0x000F
             # Opcode FX07: Set the value of register X to the value of the delay timer
             if last_hex == 0x0007:
                 self.registers[(opcode & 0x0F00) >> 8] = self.delay_timer
-                self.pc += 2
-            # TODO implement pygame keys
+                self.pc += 2 
             # Opcode FX0A: Wait for a key press and stores the value of the pressed key into register X
             if last_hex == 0x000A:
-                key_was_pressed = False
-                while key_was_pressed is not True:
-                    for key in range(0, len(self.keys)):
-                        if key is not 0:
-                            self.registers[(opcode & 0x0F00) >> 8] = key
-                            key_was_pressed = True
+                pressed = False
+                while pressed == False:
+                    event = pygame.event.wait()
+                    if event.type == pygame.KEYDOWN:
+                        pressed = pygame.key.get_pressed()
+                        for key in range(0, len(self.key_map)):
+                            if(pressed[self.key_map[key]] == True):
+                                self.registers[(opcode & 0x0F00) >> 8] = key
+                                pressed = True
                 self.pc += 2
             # Opcode FX15: Set the value of the delay timer to the value of register X
             if (opcode & 0x00FF) == 0x0015:
@@ -369,7 +391,8 @@ class CPU(object):
 
     def perform_cycle(self):
         current_opcode = self.get_opcode()
-        print(hex(current_opcode))
+        # Testing only:
+        # print(hex(current_opcode))
         if self.test == True:
             self.testing()
         self.perform_opcode(current_opcode)
